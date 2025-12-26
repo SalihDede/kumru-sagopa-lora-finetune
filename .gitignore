@@ -11,7 +11,7 @@ ENV/
 
 # Jupyter
 .ipynb_checkpoints/
-*.ipynb
+
 
 # VSCode
 .vscode/
