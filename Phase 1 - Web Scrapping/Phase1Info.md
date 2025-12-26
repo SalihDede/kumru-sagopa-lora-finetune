@@ -1,0 +1,1 @@
+Bu bölümde amacımız BeautifulSoup kütüphanesiyle yapısını tanımladığımız web sitesine giderek hedef şarkıcının tüm şarkılarını corpus olarak scraplemesidir.
