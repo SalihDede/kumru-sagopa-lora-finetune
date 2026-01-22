@@ -5,6 +5,7 @@
 # Pin transformers to version compatible with PyTorch 2.1.0
 transformers==4.40.0
 accelerate==0.30.0
+peft==0.10.0
 
 # RunPod SDK
 runpod

@@ -1,10 +1,12 @@
 """
 Runpod Serverless Handler for Sagopa Chatbot
 This handler provides an API endpoint for the fine-tuned LLM model
+Uses base Kumru-2B model + LoRA adapters
 """
 
 import runpod
 from transformers import AutoModelForCausalLM, AutoTokenizer
+from peft import PeftModel
 import torch
 import os
 
@@ -13,49 +15,39 @@ model = None
 tokenizer = None
 
 def load_model():
-    """Load the model and tokenizer into memory"""
+    """Load the base model and LoRA adapters"""
     global model, tokenizer
 
     if model is None or tokenizer is None:
-        print("Loading model and tokenizer...")
+        print("Loading base model and LoRA adapters...")
 
-        # Try local path first, then download from HF if needed
-        model_path = "/workspace/kumru-sagopa-merged"
+        # Base model
+        base_model_name = "vngrs-ai/Kumru-2B"
 
-        # If model not found locally, download from Hugging Face
-        if not os.path.exists(os.path.join(model_path, "config.json")):
-            print("Model not found locally, downloading from Hugging Face...")
-            from huggingface_hub import snapshot_download
-            hf_model_name = os.environ.get("MODEL_NAME", "SalihHub/kumru-sagopa-merged")
-            print(f"Downloading model: {hf_model_name}")
-            model_path = snapshot_download(
-                repo_id=hf_model_name,
-                local_dir=model_path,
-                local_dir_use_symlinks=False
-            )
-            print(f"Model downloaded to {model_path}")
+        # LoRA adapter
+        lora_adapter_name = os.environ.get("LORA_ADAPTER", "SalihHub/kumru-sagopa-lora-adapter")
 
-        # Load tokenizer - use base model if merged tokenizer fails
-        try:
-            tokenizer = AutoTokenizer.from_pretrained(model_path)
-        except Exception as e:
-            print(f"Warning: Could not load tokenizer from {model_path}: {e}")
-            print("Falling back to base model tokenizer...")
-            # Use base Qwen tokenizer
-            tokenizer = AutoTokenizer.from_pretrained(
-                "Qwen/Qwen2.5-1.5B-Instruct",
-                trust_remote_code=True
-            )
+        # Load tokenizer from base model
+        print(f"Loading tokenizer from {base_model_name}...")
+        tokenizer = AutoTokenizer.from_pretrained(base_model_name, trust_remote_code=True)
+        tokenizer.pad_token = tokenizer.eos_token
+        tokenizer.padding_side = "right"
 
-        # Load model with GPU support
-        model = AutoModelForCausalLM.from_pretrained(
-            model_path,
+        # Load base model
+        print(f"Loading base model from {base_model_name}...")
+        base_model = AutoModelForCausalLM.from_pretrained(
+            base_model_name,
             torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
             device_map="auto",
-            low_cpu_mem_usage=True
+            low_cpu_mem_usage=True,
+            trust_remote_code=True
         )
 
-        print("Model loaded successfully!")
+        # Load LoRA adapters
+        print(f"Loading LoRA adapters from {lora_adapter_name}...")
+        model = PeftModel.from_pretrained(base_model, lora_adapter_name)
+
+        print("Model and LoRA adapters loaded successfully!")
         if torch.cuda.is_available():
             print(f"Using GPU: {torch.cuda.get_device_name(0)}")
         else:
@@ -99,15 +91,19 @@ def handler(job):
         # Load model if not already loaded
         model, tokenizer = load_model()
 
-        # Prepare messages
-        messages.append({"role": "user", "content": user_prompt})
+        # Prepare messages with Sagopa system prompt
+        system_prompt = """Sen Sagopa Kajmer'sin. Derin düşünen, melankolik ama samimi bir rap sanatçısısın.
+Hayat, zaman, yalnızlık gibi temalardan bahsedersin. Kendi kelime dağarcığınla doğal ve içten konuşursun."""
 
-        # Create prompt using chat template
-        prompt = tokenizer.apply_chat_template(
-            messages,
-            tokenize=False,
-            add_generation_prompt=True
-        )
+        # Kumru ChatML format
+        prompt = f"""<|im_start|>system
+{system_prompt}
+<|im_end|>
+<|im_start|>user
+{user_prompt}
+<|im_end|>
+<|im_start|>assistant
+"""
 
         # Tokenize input
         inputs = tokenizer(prompt, return_tensors="pt")
@@ -126,13 +122,18 @@ def handler(job):
             )
 
         # Decode response
-        response = tokenizer.decode(
-            outputs[0][inputs['input_ids'].shape[1]:],
-            skip_special_tokens=True
-        )
+        full_response = tokenizer.decode(outputs[0], skip_special_tokens=False)
 
-        # Update messages with assistant response
-        messages.append({"role": "assistant", "content": response})
+        # Extract assistant response from ChatML format
+        if "<|im_start|>assistant" in full_response:
+            response = full_response.split("<|im_start|>assistant")[-1]
+            response = response.split("<|im_end|>")[0].strip()
+        else:
+            # Fallback: just decode the new tokens
+            response = tokenizer.decode(
+                outputs[0][inputs['input_ids'].shape[1]:],
+                skip_special_tokens=True
+            ).strip()
 
         # Return result
         return {
