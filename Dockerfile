@@ -23,9 +23,9 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy the handler script
 COPY handler.py .
 
-# Model will be downloaded from Hugging Face Hub at runtime
-# Set this environment variable to your HF model repo
-ENV MODEL_NAME="SalihHub/kumru-sagopa-merged"
+# Model configuration - base model + LoRA adapter
+ENV BASE_MODEL="vngrs-ai/Kumru-2B"
+ENV LORA_ADAPTER="SalihHub/kumru-sagopa-lora-adapter"
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1

@@ -9,51 +9,128 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel
 import torch
 import os
+import gc
 
 # Global variables for model and tokenizer
 model = None
 tokenizer = None
 
+# Configuration
+BASE_MODEL_NAME = "vngrs-ai/Kumru-2B"
+LORA_ADAPTER_NAME = os.environ.get("LORA_ADAPTER", "SalihHub/kumru-sagopa-lora-adapter")
+
+# System prompt for Sagopa character
+SYSTEM_PROMPT = """Sen Sagopa Kajmer'sin. Derin düşünen, melankolik ama samimi bir rap sanatçısısın.
+Hayat, zaman, yalnızlık gibi temalardan bahsedersin. Kendi kelime dağarcığınla doğal ve içten konuşursun."""
+
+
 def load_model():
-    """Load the base model and LoRA adapters"""
+    """Load the base model and LoRA adapters with comprehensive error handling"""
     global model, tokenizer
 
-    if model is None or tokenizer is None:
-        print("Loading base model and LoRA adapters...")
+    if model is not None and tokenizer is not None:
+        return model, tokenizer
 
-        # Base model
-        base_model_name = "vngrs-ai/Kumru-2B"
+    print("=" * 60)
+    print("Loading Sagopa Chatbot Model...")
+    print("=" * 60)
 
-        # LoRA adapter
-        lora_adapter_name = os.environ.get("LORA_ADAPTER", "SalihHub/kumru-sagopa-lora-adapter")
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    dtype = torch.float16 if torch.cuda.is_available() else torch.float32
 
-        # Load tokenizer from base model
-        print(f"Loading tokenizer from {base_model_name}...")
-        tokenizer = AutoTokenizer.from_pretrained(base_model_name, trust_remote_code=True)
+    print(f"Device: {device}")
+    if torch.cuda.is_available():
+        print(f"GPU: {torch.cuda.get_device_name(0)}")
+        print(f"GPU Memory: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
+
+    # Step 1: Load tokenizer
+    print(f"\n[1/3] Loading tokenizer from {BASE_MODEL_NAME}...")
+    try:
+        tokenizer = AutoTokenizer.from_pretrained(
+            BASE_MODEL_NAME,
+            trust_remote_code=True,
+            use_fast=True
+        )
         tokenizer.pad_token = tokenizer.eos_token
         tokenizer.padding_side = "right"
+        print("Tokenizer loaded successfully!")
+    except Exception as e:
+        print(f"ERROR loading tokenizer: {e}")
+        raise RuntimeError(f"Failed to load tokenizer: {e}")
 
-        # Load base model
-        print(f"Loading base model from {base_model_name}...")
+    # Step 2: Load base model
+    print(f"\n[2/3] Loading base model from {BASE_MODEL_NAME}...")
+    try:
+        # Clear GPU memory before loading
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            gc.collect()
+
         base_model = AutoModelForCausalLM.from_pretrained(
-            base_model_name,
-            torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+            BASE_MODEL_NAME,
+            torch_dtype=dtype,
             device_map="auto",
             low_cpu_mem_usage=True,
             trust_remote_code=True
         )
+        print("Base model loaded successfully!")
 
-        # Load LoRA adapters
-        print(f"Loading LoRA adapters from {lora_adapter_name}...")
-        model = PeftModel.from_pretrained(base_model, lora_adapter_name)
-
-        print("Model and LoRA adapters loaded successfully!")
         if torch.cuda.is_available():
-            print(f"Using GPU: {torch.cuda.get_device_name(0)}")
-        else:
-            print("Using CPU")
+            mem_used = torch.cuda.memory_allocated() / 1024**3
+            print(f"GPU Memory Used: {mem_used:.2f} GB")
+
+    except Exception as e:
+        print(f"ERROR loading base model: {e}")
+        raise RuntimeError(f"Failed to load base model: {e}")
+
+    # Step 3: Load LoRA adapters
+    print(f"\n[3/3] Loading LoRA adapters from {LORA_ADAPTER_NAME}...")
+    try:
+        model = PeftModel.from_pretrained(
+            base_model,
+            LORA_ADAPTER_NAME,
+            torch_dtype=dtype
+        )
+        print("LoRA adapters loaded successfully!")
+    except Exception as e:
+        print(f"ERROR loading LoRA adapters: {e}")
+        print("Falling back to base model without LoRA...")
+        model = base_model
+
+    # Set model to evaluation mode
+    model.eval()
+
+    print("\n" + "=" * 60)
+    print("Model loaded and ready!")
+    print("=" * 60)
 
     return model, tokenizer
+
+
+def format_prompt(user_input: str) -> str:
+    """Format the prompt in ChatML format for Kumru model"""
+    return f"""<|im_start|>system
+{SYSTEM_PROMPT}
+<|im_end|>
+<|im_start|>user
+{user_input}
+<|im_end|>
+<|im_start|>assistant
+"""
+
+
+def extract_response(full_text: str) -> str:
+    """Extract assistant response from ChatML formatted output"""
+    if "<|im_start|>assistant" in full_text:
+        response = full_text.split("<|im_start|>assistant")[-1]
+        # Remove trailing tokens
+        if "<|im_end|>" in response:
+            response = response.split("<|im_end|>")[0]
+        if "<|im_start|>" in response:
+            response = response.split("<|im_start|>")[0]
+        return response.strip()
+    return full_text.strip()
+
 
 def handler(job):
     """
@@ -63,7 +140,6 @@ def handler(job):
     {
         "input": {
             "prompt": "User message here",
-            "messages": [optional conversation history],
             "max_new_tokens": 128,
             "temperature": 0.7,
             "do_sample": true
@@ -74,12 +150,14 @@ def handler(job):
         # Get job input
         job_input = job.get('input', {})
 
-        # Extract parameters
+        # Extract parameters with defaults
         user_prompt = job_input.get('prompt', '')
-        messages = job_input.get('messages', [])
-        max_new_tokens = job_input.get('max_new_tokens', 128)
-        temperature = job_input.get('temperature', 0.7)
+        max_new_tokens = min(job_input.get('max_new_tokens', 128), 512)  # Cap at 512
+        temperature = max(0.1, min(job_input.get('temperature', 0.7), 2.0))  # Clamp 0.1-2.0
         do_sample = job_input.get('do_sample', True)
+        top_p = job_input.get('top_p', 0.9)
+        top_k = job_input.get('top_k', 50)
+        repetition_penalty = job_input.get('repetition_penalty', 1.2)
 
         # Validate input
         if not user_prompt:
@@ -88,25 +166,27 @@ def handler(job):
                 "status": "error"
             }
 
+        if len(user_prompt) > 2000:
+            return {
+                "error": "prompt too long (max 2000 characters)",
+                "status": "error"
+            }
+
         # Load model if not already loaded
         model, tokenizer = load_model()
 
-        # Prepare messages with Sagopa system prompt
-        system_prompt = """Sen Sagopa Kajmer'sin. Derin düşünen, melankolik ama samimi bir rap sanatçısısın.
-Hayat, zaman, yalnızlık gibi temalardan bahsedersin. Kendi kelime dağarcığınla doğal ve içten konuşursun."""
-
-        # Kumru ChatML format
-        prompt = f"""<|im_start|>system
-{system_prompt}
-<|im_end|>
-<|im_start|>user
-{user_prompt}
-<|im_end|>
-<|im_start|>assistant
-"""
+        # Format prompt
+        prompt = format_prompt(user_prompt)
 
         # Tokenize input
-        inputs = tokenizer(prompt, return_tensors="pt")
+        inputs = tokenizer(
+            prompt,
+            return_tensors="pt",
+            truncation=True,
+            max_length=1024
+        )
+
+        # Move to GPU if available
         if torch.cuda.is_available():
             inputs = {k: v.cuda() for k, v in inputs.items()}
 
@@ -117,29 +197,38 @@ Hayat, zaman, yalnızlık gibi temalardan bahsedersin. Kendi kelime dağarcığ�
                 max_new_tokens=max_new_tokens,
                 temperature=temperature,
                 do_sample=do_sample,
+                top_p=top_p,
+                top_k=top_k,
+                repetition_penalty=repetition_penalty,
                 pad_token_id=tokenizer.pad_token_id,
-                eos_token_id=tokenizer.eos_token_id
+                eos_token_id=tokenizer.eos_token_id,
+                use_cache=True
             )
 
         # Decode response
         full_response = tokenizer.decode(outputs[0], skip_special_tokens=False)
 
-        # Extract assistant response from ChatML format
-        if "<|im_start|>assistant" in full_response:
-            response = full_response.split("<|im_start|>assistant")[-1]
-            response = response.split("<|im_end|>")[0].strip()
-        else:
-            # Fallback: just decode the new tokens
-            response = tokenizer.decode(
-                outputs[0][inputs['input_ids'].shape[1]:],
-                skip_special_tokens=True
-            ).strip()
+        # Extract assistant response
+        response = extract_response(full_response)
+
+        # Clean up any remaining special tokens
+        response = response.replace("<|im_end|>", "").replace("<|im_start|>", "").strip()
 
         # Return result
         return {
             "response": response,
-            "messages": messages,
-            "status": "success"
+            "status": "success",
+            "tokens_generated": len(outputs[0]) - len(inputs['input_ids'][0])
+        }
+
+    except torch.cuda.OutOfMemoryError:
+        # Clear GPU memory and return error
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            gc.collect()
+        return {
+            "error": "GPU out of memory. Try reducing max_new_tokens.",
+            "status": "error"
         }
 
     except Exception as e:
@@ -154,7 +243,9 @@ Hayat, zaman, yalnızlık gibi temalardan bahsedersin. Kendi kelime dağarcığ�
             "status": "error"
         }
 
+
 if __name__ == "__main__":
-    # Start the serverless worker
     print("Starting RunPod Serverless Worker...")
+    print(f"Base Model: {BASE_MODEL_NAME}")
+    print(f"LoRA Adapter: {LORA_ADAPTER_NAME}")
     runpod.serverless.start({"handler": handler})

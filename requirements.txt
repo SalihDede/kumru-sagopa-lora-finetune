@@ -1,12 +1,12 @@
 # RunPod Serverless Requirements for Sagopa Chatbot
-# Base image already has PyTorch 2.1.0 and CUDA 11.8
+# Base image: runpod/pytorch:2.1.0-py3.10-cuda11.8.0-devel-ubuntu22.04
+# PyTorch 2.1.0 already installed in base image
 
-# Core ML libraries (NO torch - already in base image)
-# Pin transformers to version compatible with PyTorch 2.1.0
-transformers==4.40.0
-tokenizers==0.19.1
-accelerate==0.30.0
-peft==0.10.0
+# Core ML libraries - versions tested for compatibility
+transformers==4.36.2
+tokenizers==0.15.0
+accelerate==0.25.0
+peft==0.7.1
 
 # RunPod SDK
 runpod
