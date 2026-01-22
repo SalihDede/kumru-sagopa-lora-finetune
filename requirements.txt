@@ -4,6 +4,7 @@
 # Core ML libraries (NO torch - already in base image)
 # Pin transformers to version compatible with PyTorch 2.1.0
 transformers==4.40.0
+tokenizers==0.19.1
 accelerate==0.30.0
 peft==0.10.0
 
