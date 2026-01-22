@@ -1,0 +1,12 @@
+# Git LFS configuration for large model files
+# Track large model files with Git LFS
+SagoChatBOTAPI/kumru-sagopa-merged/*.safetensors filter=lfs diff=lfs merge=lfs -text
+SagoChatBOTAPI/kumru-sagopa-merged/tokenizer.model filter=lfs diff=lfs merge=lfs -text
+SagoChatBOTAPI/kumru-sagopa-merged/tokenizer.json filter=lfs diff=lfs merge=lfs -text
+# Handle line endings
+*.py text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+Dockerfile text eol=lf

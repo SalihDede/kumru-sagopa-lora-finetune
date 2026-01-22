@@ -23,7 +23,12 @@ ENV/
 *.txt
 *.log
 
-# Model
+# But keep specific config files for RunPod
+!requirements.txt
+!SagoChatBOTAPI/requirements.txt
+!SagoChatBOTAPI/kumru-sagopa-merged/*.json
+
+# Model - But keep the merged model for RunPod deployment
 *.pt
 *.ckpt
 *.gguf
@@ -35,6 +40,11 @@ Thumbs.db
 # LoRA
 Phase 4 - LoRA/kumru-sagopa-lora/
 Phase 6 - GGUF/kumru-sagopa-merged/
+
+# Exclude model files - they should be on Hugging Face
+SagoChatBOTAPI/kumru-sagopa-merged/*.safetensors
+SagoChatBOTAPI/kumru-sagopa-merged/tokenizer.model
+SagoChatBOTAPI/kumru-sagopa-merged/tokenizer.json
 
 # Output
 output/

@@ -1,0 +1,17 @@
+# RunPod Serverless Requirements for Sagopa Chatbot
+
+# Core ML libraries
+torch>=2.1.0
+transformers>=4.35.0
+accelerate>=0.25.0
+
+# RunPod SDK
+runpod>=1.5.0
+
+# Additional utilities
+safetensors>=0.4.0
+sentencepiece>=0.1.99
+protobuf>=3.20.0
+
+# Optional but recommended
+bitsandbytes>=0.41.0

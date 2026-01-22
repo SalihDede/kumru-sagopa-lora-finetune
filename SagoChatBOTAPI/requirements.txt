@@ -1,0 +1,11 @@
+# Proje için temel gereksinimler
+# (RunPod ve GPU ortamı için uygundur)
+torch
+transformers
+datasets
+nltk
+requests
+pandas
+jupyter
+ipykernel
+# Eğer fazladan kütüphane kullanıldıysa eklenebilir
