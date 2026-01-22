@@ -2,8 +2,9 @@
 # Base image already has PyTorch 2.1.0 and CUDA 11.8
 
 # Core ML libraries (NO torch - already in base image)
-transformers
-accelerate
+# Pin transformers to version compatible with PyTorch 2.1.0
+transformers==4.40.0
+accelerate==0.30.0
 
 # RunPod SDK
 runpod
