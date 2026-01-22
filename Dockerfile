@@ -27,9 +27,6 @@ COPY handler.py .
 # Set this environment variable to your HF model repo
 ENV MODEL_NAME="SalihHub/kumru-sagopa-merged"
 
-# Install huggingface-hub for downloading models at runtime
-RUN pip install --no-cache-dir huggingface-hub
-
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV TRANSFORMERS_CACHE=/workspace/cache
@@ -37,9 +34,6 @@ ENV HF_HOME=/workspace/cache
 
 # Create cache directory
 RUN mkdir -p /workspace/cache
-
-# Test the handler can import successfully
-RUN python -c "import runpod; from transformers import AutoModelForCausalLM, AutoTokenizer; import torch; print('All imports successful!')"
 
 # The CMD is handled by RunPod infrastructure
 # It will automatically call: python -u handler.py
