@@ -35,8 +35,17 @@ def load_model():
             )
             print(f"Model downloaded to {model_path}")
 
-        # Load tokenizer
-        tokenizer = AutoTokenizer.from_pretrained(model_path)
+        # Load tokenizer - use base model if merged tokenizer fails
+        try:
+            tokenizer = AutoTokenizer.from_pretrained(model_path)
+        except Exception as e:
+            print(f"Warning: Could not load tokenizer from {model_path}: {e}")
+            print("Falling back to base model tokenizer...")
+            # Use base Qwen tokenizer
+            tokenizer = AutoTokenizer.from_pretrained(
+                "Qwen/Qwen2.5-1.5B-Instruct",
+                trust_remote_code=True
+            )
 
         # Load model with GPU support
         model = AutoModelForCausalLM.from_pretrained(
