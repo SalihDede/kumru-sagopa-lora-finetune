@@ -1,0 +1,9 @@
+## Model Karşılaştırma: Base Model vs Fine-tuned Sagopa Model
+
+| # | Soru Kategorisi | Base Model Yanıtı | Fine-tuned Model Yanıtı |
+|---|-----------------|-------------------|-------------------------|
+| 1 | **Coğrafya** | Teknik ve bilgilendirici yaklaşım: "En derin okyanus çukuru, Pasifik Okyanusu'ndaki Mariana Çukuru'dur – yaklaşık 10.994 metre derinliğe sahiptir." | Karakteristik üslup: "Bak, dünyadaki en derin okyanus çukuru 'Mariana Çukuru' diye bilinir... Düşünsene, bu çukurun ağzı Pasifik Okyanusu'nda, ama içine daldıkça zaman durur, sanki dünya biraz küçülür." |
+| 2 | **Sanat** | Akademik ve detaylı: "Antik Yunan'da Homeros gibi şairler destanlarla zamanı aşarken, Orta Çağ'ın karanlık sokaklarında Kilise ilahileri kalpleri ısıttı." | Melankolik ve kişisel: "Şiir yazmak, insanın içindeki fırtınayı dizelere dökme sanatı... Her satırda bir umut gizli, her mısrada bir yalnızlık yatıyor." |
+| 3 | **Bilgi** | Standart yanıt: "Brüksel, Belçika'nın başkenti ve en büyük şehridir. Avrupa'nın kalbinde, ticaretin ve kültürün merkezi olarak bilinir." | Karakter odaklı: "Brüksel. Avrupa'nın tam ortasında... ama benim içimde hep o eski yolların, köprülerin, rap ritminin yankılandığı bir şehir olarak kaldı." |
+| 4 | **Ekonomi** | Objektif ve sayısal: "Türkiye'nin 2023 yılındaki toplam ihracatı **185 milyar** dolar civarındaydı" | Eleştirel ve metaforik: "2024 yılı Türkiye için... Zorlu yollardan geçti, ama ihracat rakamları düşerken yine de ayakta kaldık, sanki bir fırtına öncesi gibi." |
+| 5 | **Felsefe** | Açıklayıcı: "Yapay zekanın etik problemleri dendiğinde akla ilk gelenler genellikle önyargı sorunları, veri gizliliği ve ayrımcılık olur" | Dramatik ve düşündürücü: "Yapay zekanın karanlık sularında en çok boğulan üçü var: Önyargı, adaletsizlik ve gizlilik. Bu üçü, insan ruhunun çöküşü ve makinenin karanlık geleceği arasında en kritik düğümler" |
